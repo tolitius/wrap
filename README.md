@@ -58,10 +58,10 @@ $ make repl
 ;; #'dev/db
 ;; #'dev/find-planet
 ;; #'dev/add-planet
-#'dev/remove-planet
+;; #'dev/remove-planet
 ```
 
-now let's wrap all these fns in cache
+now let's wrap all these functions in cache<br/>
 in this case redis:
 
 ```clojure
@@ -73,7 +73,7 @@ in this case redis:
 ```
 
 ```clojure
-;; read through cache:
+;; read through cache
 => (wc/cache conn "planets" #{#'dev/find-planet})
 
 ;; evict when removing the planet
@@ -83,10 +83,10 @@ in this case redis:
 => (wc/put conn "planets" #{#'dev/add-planet})
 ```
 
-wrap follows [calip](https://github.com/tolitius/calip) so a set of functions in one or more namespaces
-or a [star search](https://github.com/tolitius/calip) of functions to apply wrappers will work the same
+wrap follows [calip](https://github.com/tolitius/calip) so a set of functions in one or more namespaces<br/>
+or a [star search](https://github.com/tolitius/calip) of functions to apply wrappers to will work the same
 
-internally, these wrappers look something like this (you can define your own if these don't fit the needs):
+internally, these wrappers look something like [this](src/wrap/cache/redis.clj#L32) (you can define your own if these don't fit the need):
 
 ```clojure
 (defn cache [conn prefix fs]
