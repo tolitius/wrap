@@ -1,0 +1,30 @@
+{:paths ["src"]
+
+ ;; (!) this lib has deps
+ ;;     feel free to steal from it vs. use it in case these deps scare you
+ :deps {tolitius/calip {:mvn/version "0.1.8"}
+        com.danboykis/cljhash {:mvn/version "0.1.0"}
+        com.tolitius/obiwan {:mvn/version "0.1.480"}
+        com.taoensso/nippy {:mvn/version "3.1.1"}}
+
+ :aliases {:dev {:extra-paths ["dev"]
+                 :extra-deps {tolitius/yang {:mvn/version "0.1.29"}
+                              org.clojure/tools.logging {:mvn/version "1.1.0"}}}
+           :repl {;; :extra-paths ["test" "test/resources"]
+                  :extra-deps {nrepl/nrepl {:mvn/version "0.7.0"}
+                               cider/cider-nrepl {:mvn/version "0.22.4"}
+                               com.bhauman/rebel-readline {:mvn/version "0.1.4"}}
+                  :main-opts ["-e" "(require 'dev)(in-ns 'dev)"
+                              "-m" "nrepl.cmdline" "--middleware" "[cider.nrepl/cider-middleware]"
+                              "-i" "-f" "rebel-readline.main/-main"]}
+           :outdated {:extra-deps {olical/depot {:mvn/version "2.0.1"}}
+                      :main-opts  ["-m" "depot.outdated.main" "-a" "outdated"]}
+           :tag {:extra-deps {tolitius/tag {:mvn/version "0.1.7"}}
+                 :main-opts ["-m" "tag.core" "tolitius/wrap" "it's a wrap. wrap before, after, around"]}
+           :jar {:extra-deps {seancorfield/depstar {:mvn/version "1.1.128"}}
+                 :extra-paths ["target/about"]
+                 :main-opts ["-m" "hf.depstar.jar" "target/wrap.jar" "--exclude" "clojure/core/specs/alpha.*"]}
+           :deploy {:extra-deps {deps-deploy/deps-deploy {:mvn/version "RELEASE"}}
+                    :main-opts ["-m" "deps-deploy.deps-deploy" "deploy" "target/wrap.jar"]}
+           :install {:extra-deps {deps-deploy/deps-deploy {:mvn/version "RELEASE"}}
+                     :main-opts ["-m" "deps-deploy.deps-deploy" "install" "target/wrap.jar"]}}}
