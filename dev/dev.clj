@@ -1,4 +1,5 @@
-(ns dev)
+(ns dev
+  (:require [yang.lang :as y]))
 
 ;; db
 (defn take-time [seconds]
@@ -39,6 +40,7 @@
 (find-planet db {:planet :earth})
 
 (remove-planet db {:planet :earth})
+(find-planet db {:planet :earth})
 
 (find-planet db {:planet :pluto})
 
