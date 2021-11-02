@@ -29,7 +29,7 @@
                (make-key prefix key-fn args)
                (encore/pr-edn v))))
 
-(defn delete [conn prefix args key-fn]
+(defn delete [conn prefix key-fn args]
   (when args
     (redis/del conn
                [(make-key prefix key-fn args)])))
