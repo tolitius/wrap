@@ -17,3 +17,10 @@
     (let [v (apply f args)]
       (store args v)
       v)))
+
+(defn search [do-search]
+  (fn [f & args]
+    (let [{:keys [data] :as resp} (do-search args)]
+      (if (not-empty data)
+        resp
+        (apply f args)))))
