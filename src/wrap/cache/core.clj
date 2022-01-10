@@ -20,7 +20,7 @@
 
 (defn search [do-search]
   (fn [f & args]
-    (let [{:keys [data] :as resp} (do-search args)]
-      (if (not-empty data)
-        resp
+    (let [{:keys [found] :as result} (do-search args)]
+      (if (zero? found)
+        result
         (apply f args)))))

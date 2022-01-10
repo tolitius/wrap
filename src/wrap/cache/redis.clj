@@ -8,70 +8,54 @@
             [taoensso.nippy :as nippy]
             [clojure.string :as str]))
 
-(defn- make-key [k key-fn args]
+(defn- make-key [k cache-by args]
   ;; using the function user sends to extract the key
   ;; else hash the entire object as the key
-  (let [key-val (key-fn args)]
+  (let [key-val (cond cache-by (cache-by args)
+                      (= 1 (count args)) (first args)
+                      :else (t/hash-it (rest args)))]
     (str k ":" key-val)))
 
-(defn build-search-filter [arg]
-  (if (map? arg)
-    (let [search-by (some-> arg :search-by (str "*"))
-          rest (dissoc arg :search-by :sort-by :page-number :page-size)
-          filters (mapv #(str "@" (-> % key name) ":" (val %)) rest)]
-      (->> (str/join " " filters)
-           (str search-by " ")))
-    arg))
 
 ;; if more than redis place this ns behind a couple of protocols
-(defn lookup [conn prefix key-fn args]
+(defn lookup [conn prefix cache-by args]
   (when-let [v (redis/get conn
-                          (make-key prefix key-fn args))]
+                          (make-key prefix cache-by args))]
     (-> v .getBytes nippy/thaw encore/read-edn)))
 
-(defn store [conn prefix key-fn args v]
+(defn store [conn prefix cache-by args v]
   (when (and v args)
     (redis/set conn
-               (make-key prefix key-fn args)
+               (make-key prefix cache-by args)
                (-> v encore/pr-edn nippy/freeze String.))))
 
-(defn delete [conn prefix key-fn args]
+(defn delete [conn prefix cache-by args]
   (when args
     (redis/del conn
-               [(make-key prefix key-fn args)])))
+               [(make-key prefix cache-by args)])))
 
-(defn do-search [conn index key-fn args]
+(defn do-search [conn index cache-by args page-by]
   (when args
-    (let [{:keys [pageNumber pageSize sortBy] :or {pageNumber 1 pageSize 10}} args
-          offset  (* (dec pageNumber) pageSize)
-          paging [{:limit {:number pageSize :offset offset}}]
-          {:keys [field direction]} sortBy
-          paging-with-sort (if sortBy (conj paging {:sort {:by {field (keyword direction)}}}) paging)
-          {:keys [results found]} (search/ft-search conn index
-                                            (-> args key-fn build-search-filter)
-                                            paging-with-sort)]
-    {:data        (mapv #(-> % first val (t/fmv t/safe-read)) results)
-     :pageDetails (t/page-details pageNumber pageSize found)})))
+    (search/ft-search conn index
+                      (cache-by args)
+                      (some-> page-by args))))
 
 ;; wrappers
-(defn cache [conn fs {:keys [prefix key-fn]
-                      :or   {key-fn t/hash-it}}]
+(defn cache [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
-          (c/cache (partial lookup conn prefix key-fn)
-                   (partial store conn prefix key-fn))))
+          (c/cache (partial lookup conn prefix cache-by)
+                   (partial store conn prefix cache-by))))
 
-(defn evict [conn fs {:keys [prefix key-fn]
-                      :or   {key-fn t/hash-it}}]
+(defn evict [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
-          (c/evict (partial delete conn prefix key-fn))))
+          (c/evict (partial delete conn prefix cache-by))))
 
-(defn put [conn fs {:keys [prefix key-fn]
-                    :or   {key-fn t/hash-it}}]
+(defn put [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
-          (c/put (partial store conn prefix key-fn))))
+          (c/put (partial store conn prefix cache-by))))
 
-(defn search [conn fs {:keys [index key-fn]
-                       :or   {key-fn identity}}]
+(defn search [conn fs {:keys [index cache-by page-by]
+                       :or   {cache-by identity}}]
   (w/wrap fs
-          (c/search (partial do-search conn index key-fn))))
+          (c/search (partial do-search conn index cache-by page-by))))
 

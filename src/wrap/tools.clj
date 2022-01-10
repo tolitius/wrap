@@ -1,6 +1,7 @@
 (ns wrap.tools
   (:require [taoensso.nippy :as nippy]
-            [cljhash.core :as hasher])
+            [cljhash.core :as hasher]
+            [clojure.string :as str])
   (:import [com.google.common.hash Hashing
                                    Funnel
                                    PrimitiveSink]
@@ -19,27 +20,6 @@
               (hasher/hash-obj murmur nippy-funnel obj)))]
     (str h)))
 
-(defn fmv
-  "apply f to each value v of map m"
-  [m f]
-  (into {}
-        (for [[k v] m]
-          [k (f v)])))
-
-(defn safe-read [s]
-  (try
-    (condp = (-> s read-string type)
-      Symbol s
-      (read-string s))
-    (catch Exception e
-      s)))
-
-(defn page-details [page-number page-size total-count]
-  {:totalCount total-count
-   :pageNumber page-number
-   :pageSize   page-size
-   :totalPages (cond
-                  (= page-size 0) 0
-                  (zero? (mod total-count page-size)) (quot total-count page-size)
-                  :else (-> (quot total-count page-size)
-                            (+ 1)))})
+(defn map->search-string [m]
+  (->> (mapv #(str "@" (-> % key name) ":" (val %)) m)
+       (str/join " ")))
