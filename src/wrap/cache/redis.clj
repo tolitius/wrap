@@ -5,41 +5,46 @@
             [taoensso.nippy :as nippy]
             [obiwan.core :as redis]))
 
-(defn- make-key [k args]
-  ;; (!) dropping the first arg by assuming it is a db/IO resources is
-  ;; a hack: needs more thinking
-  (let [without-db (rest args)] ;; <<< needs more thinking
-    (str k ":" (t/hash-it without-db))))
+(defn- make-default-key [k args]
+  (case (count args)
+        0     k                      ;; TODO might need a warning
+        1     (first args)
+        (t/hash-it (rest args))))
+
+(defn- make-key [k cache-by args]
+  ;; using the function user sends to extract the key
+  ;; else hash the entire object as the key
+  (str k ":" (if cache-by
+               (cache-by args)
+               (make-default-key k args))))
 
 ;; if more than redis place this ns behind a couple of protocols
-
-(defn lookup [conn prefix args]
+(defn lookup [conn prefix cache-by args]
   (when-let [v (redis/get conn
-                          (make-key prefix args))]
-    (nippy/thaw (.getBytes v))))
+                          (make-key prefix cache-by args))]
+    (nippy/thaw-from-string v {:incl-metadata? false})))
 
-(defn store [conn prefix args v]
+(defn store [conn prefix cache-by args v]
   (when (and v args)
     (redis/set conn
-               (make-key prefix args)
-               (String. (nippy/freeze v)))))
+               (make-key prefix cache-by args)
+               (nippy/freeze-to-string v {:incl-metadata? false}))))
 
-(defn delete [conn prefix args]
+(defn delete [conn prefix cache-by args]
   (when args
     (redis/del conn
-               [(make-key prefix args)])))
+               [(make-key prefix cache-by args)])))
 
 ;; wrappers
-(defn cache [conn prefix fs]
+(defn cache [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
-          (c/cache (partial lookup conn prefix)
-                   (partial store conn prefix))))
+          (c/cache (partial lookup conn prefix cache-by)
+                   (partial store conn prefix cache-by))))
 
-(defn evict [conn prefix fs]
+(defn evict [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
-          (c/evict (partial delete conn prefix))))
+          (c/evict (partial delete conn prefix cache-by))))
 
-(defn put [conn prefix fs]
+(defn put [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
-          (c/put (partial store conn prefix))))
-
+          (c/put (partial store conn prefix cache-by))))

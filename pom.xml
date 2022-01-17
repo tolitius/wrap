@@ -4,7 +4,7 @@
   <packaging>jar</packaging>
   <groupId>com.tolitius</groupId>
   <artifactId>wrap</artifactId>
-  <version>0.1.002</version>
+  <version>0.1.003</version>
   <name>wrap</name>
   <description>wrap before, after and around: a.k.a. a.o.p.</description>
   <url>https://github.com/tolitius/wrap</url>
