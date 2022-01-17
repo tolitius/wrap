@@ -19,7 +19,3 @@
             (catch Exception e
               (hasher/hash-obj murmur nippy-funnel obj)))]
     (str h)))
-
-(defn map->search-string [m]
-  (->> (mapv #(str "@" (-> % key name) ":" (val %)) m)
-       (str/join " ")))
