@@ -2,8 +2,8 @@
   (:require [wrap.core :as w]
             [wrap.cache.core :as c]
             [wrap.tools :as t]
-            [obiwan.core :as redis]
-            [taoensso.nippy :as nippy]))
+            [taoensso.nippy :as nippy]
+            [obiwan.core :as redis]))
 
 (defn- make-default-key [k args]
   (case (count args)

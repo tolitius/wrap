@@ -1,11 +1,9 @@
 (ns wrap.tools
   (:require [taoensso.nippy :as nippy]
-            [cljhash.core :as hasher]
-            [clojure.string :as str])
+            [cljhash.core :as hasher])
   (:import [com.google.common.hash Hashing
                                    Funnel
-                                   PrimitiveSink]
-           (clojure.lang Symbol)))
+                                   PrimitiveSink]))
 
 (def nippy-funnel
   (reify Funnel
