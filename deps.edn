@@ -2,9 +2,9 @@
 
  ;; (!) this lib has deps
  ;;     feel free to steal from it vs. use it in case these deps scare you
- :deps {tolitius/calip {:mvn/version "0.1.8"}
+ :deps {tolitius/calip {:mvn/version "0.1.13"}
         com.danboykis/cljhash {:mvn/version "0.1.0"}
-        com.tolitius/obiwan {:mvn/version "0.1.480"}
+        com.tolitius/obiwan {:mvn/version "0.2.5"}
         com.taoensso/nippy {:mvn/version "3.4.2"}}
 
  :aliases {:dev {:extra-paths ["dev"]
