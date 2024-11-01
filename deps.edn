@@ -5,7 +5,7 @@
  :deps {tolitius/calip {:mvn/version "0.1.8"}
         com.danboykis/cljhash {:mvn/version "0.1.0"}
         com.tolitius/obiwan {:mvn/version "0.1.480"}
-        com.taoensso/nippy {:mvn/version "3.1.1"}}
+        com.taoensso/nippy {:mvn/version "3.4.2"}}
 
  :aliases {:dev {:extra-paths ["dev"]
                  :extra-deps {tolitius/yang {:mvn/version "0.1.29"}
