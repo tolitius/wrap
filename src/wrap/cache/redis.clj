@@ -24,11 +24,19 @@
                           (make-key prefix cache-by args))]
     (nippy/thaw-from-string v {:incl-metadata? false})))
 
-(defn store [conn prefix cache-by args v]
+(defn- ->set-params [time-to-live]
+  ;; this function will apply critical params to keys like ttl
+  ;; and can expand to cater redis.clients.jedis.params.SetParams.
+  (cond-> {}
+          (and (some? time-to-live)
+               (pos? time-to-live)) (merge {:ex time-to-live})))
+
+(defn store [conn prefix cache-by time-to-live args v]
   (when (and v args)
     (redis/set conn
                (make-key prefix cache-by args)
-               (nippy/freeze-to-string v {:incl-metadata? false}))))
+               (nippy/freeze-to-string v {:incl-metadata? false})
+               (->set-params time-to-live))))
 
 (defn delete [conn prefix cache-by args]
   (when args
@@ -36,10 +44,10 @@
                [(make-key prefix cache-by args)])))
 
 ;; wrappers
-(defn cache [conn fs {:keys [prefix cache-by]}]
+(defn cache [conn fs {:keys [prefix cache-by time-to-live]}]
   (w/wrap fs
           (c/cache (partial lookup conn prefix cache-by)
-                   (partial store conn prefix cache-by))))
+                   (partial store conn prefix cache-by time-to-live))))
 
 (defn evict [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
