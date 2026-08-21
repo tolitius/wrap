@@ -24,6 +24,12 @@
                           (make-key prefix cache-by args))]
     (nippy/thaw-from-string v {:incl-metadata? false})))
 
+(defn lookup-gracefully [conn prefix cache-by args]
+  (try
+    (lookup conn prefix cache-by args)
+    (catch Exception e
+      (println "cache lookup failed, falling back to source:" (.getMessage e)))))
+
 (defn- ->set-params [time-to-live]
   ;; this function will apply critical params to keys like ttl
   ;; and can expand to cater redis.clients.jedis.params.SetParams.
@@ -38,16 +44,28 @@
                (nippy/freeze-to-string v {:incl-metadata? false})
                (->set-params time-to-live))))
 
+(defn store-gracefully [conn prefix cache-by time-to-live args v]
+  (try
+    (store conn prefix cache-by time-to-live args v)
+    (catch Exception e
+      (println "cache store failed, result will not be cached:" (.getMessage e)))))
+
 (defn delete [conn prefix cache-by args]
   (when args
     (redis/del conn
                [(make-key prefix cache-by args)])))
 
 ;; wrappers
-(defn cache [conn fs {:keys [prefix cache-by time-to-live]}]
-  (w/wrap fs
-          (c/cache (partial lookup conn prefix cache-by)
-                   (partial store conn prefix cache-by time-to-live))))
+(defn cache [conn fs {:keys [prefix cache-by time-to-live skip-gracefully?]}]
+  (let [lookup-fn (if skip-gracefully?
+                    lookup-gracefully
+                    lookup)
+        store-fn  (if skip-gracefully?
+                    store-gracefully
+                    store)]
+    (w/wrap fs
+            (c/cache (partial lookup-fn conn prefix cache-by)
+                     (partial store-fn conn prefix cache-by time-to-live)))))
 
 (defn evict [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
