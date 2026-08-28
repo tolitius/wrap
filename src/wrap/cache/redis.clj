@@ -3,7 +3,8 @@
             [wrap.cache.core :as c]
             [wrap.tools :as t]
             [taoensso.nippy :as nippy]
-            [obiwan.core :as redis]))
+            [obiwan.core :as redis]
+            [clojure.tools.logging :as log]))
 
 (defn- make-default-key [k args]
   (case (count args)
@@ -24,12 +25,6 @@
                           (make-key prefix cache-by args))]
     (nippy/thaw-from-string v {:incl-metadata? false})))
 
-(defn lookup-gracefully [conn prefix cache-by args]
-  (try
-    (lookup conn prefix cache-by args)
-    (catch Exception e
-      (println "cache lookup failed, falling back to source:" (.getMessage e)))))
-
 (defn- ->set-params [time-to-live]
   ;; this function will apply critical params to keys like ttl
   ;; and can expand to cater redis.clients.jedis.params.SetParams.
@@ -44,28 +39,34 @@
                (nippy/freeze-to-string v {:incl-metadata? false})
                (->set-params time-to-live))))
 
-(defn store-gracefully [conn prefix cache-by time-to-live args v]
-  (try
-    (store conn prefix cache-by time-to-live args v)
-    (catch Exception e
-      (println "cache store failed, result will not be cached:" (.getMessage e)))))
-
 (defn delete [conn prefix cache-by args]
   (when args
     (redis/del conn
                [(make-key prefix cache-by args)])))
 
+(defn- suppress [f op]
+  (fn [& args]
+    (try
+      (apply f args)
+      (catch Exception e
+        (log/error "cache " op " failed; serving from source " e)
+        nil))))
+
 ;; wrappers
-(defn cache [conn fs {:keys [prefix cache-by time-to-live skip-gracefully?]}]
-  (let [lookup-fn (if skip-gracefully?
-                    lookup-gracefully
-                    lookup)
-        store-fn  (if skip-gracefully?
-                    store-gracefully
-                    store)]
+(defn cache
+  ":on-error :throw  => cache errors propagate (default)
+             :ignore => cache errors are logged; lookup errors
+                        become misses (fn is called), store
+                        errors are dropped (result is still
+                        returned to the caller)"
+  [conn fs {:keys [prefix cache-by time-to-live on-error]
+            :or   {on-error :throw}}]
+  (let [lookup-fn (cond-> (partial lookup conn prefix cache-by)
+                          (= on-error :ignore) (suppress :lookup))
+        store-fn  (cond-> (partial store conn prefix cache-by time-to-live)
+                          (= on-error :ignore) (suppress :store))]
     (w/wrap fs
-            (c/cache (partial lookup-fn conn prefix cache-by)
-                     (partial store-fn conn prefix cache-by time-to-live)))))
+            (c/cache lookup-fn store-fn))))
 
 (defn evict [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
