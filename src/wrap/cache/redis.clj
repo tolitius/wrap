@@ -48,8 +48,8 @@
   (fn [& args]
     (try
       (apply f args)
-      (catch Exception e
-        (log/error "cache " op " failed; serving from source " e)
+      (catch Throwable e
+        (log/error e "cache" op "failed; serving from source")
         nil))))
 
 ;; wrappers
