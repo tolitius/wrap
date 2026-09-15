@@ -3,7 +3,8 @@
             [wrap.cache.core :as c]
             [wrap.tools :as t]
             [taoensso.nippy :as nippy]
-            [obiwan.core :as redis]))
+            [obiwan.core :as redis]
+            [clojure.tools.logging :as log]))
 
 (defn- make-default-key [k args]
   (case (count args)
@@ -43,11 +44,29 @@
     (redis/del conn
                [(make-key prefix cache-by args)])))
 
+(defn- suppress [f op]
+  (fn [& args]
+    (try
+      (apply f args)
+      (catch Throwable e
+        (log/error e "cache" op "failed; serving from source")
+        nil))))
+
 ;; wrappers
-(defn cache [conn fs {:keys [prefix cache-by time-to-live]}]
-  (w/wrap fs
-          (c/cache (partial lookup conn prefix cache-by)
-                   (partial store conn prefix cache-by time-to-live))))
+(defn cache
+  ":on-error :throw  => cache errors propagate (default)
+             :ignore => cache errors are logged; lookup errors
+                        become misses (fn is called), store
+                        errors are dropped (result is still
+                        returned to the caller)"
+  [conn fs {:keys [prefix cache-by time-to-live on-error]
+            :or   {on-error :throw}}]
+  (let [lookup-fn (cond-> (partial lookup conn prefix cache-by)
+                          (= on-error :ignore) (suppress :lookup))
+        store-fn  (cond-> (partial store conn prefix cache-by time-to-live)
+                          (= on-error :ignore) (suppress :store))]
+    (w/wrap fs
+            (c/cache lookup-fn store-fn))))
 
 (defn evict [conn fs {:keys [prefix cache-by]}]
   (w/wrap fs
